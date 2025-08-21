@@ -57,7 +57,43 @@
 
         .tab-btn, .action-btn, input, textarea, button, .level-btn { transition: all 0.3s ease; }
         .tab-btn.active { color: #60a5fa; border-color: #60a5fa; }
-        #sidebar { transition: transform 0.3s ease-in-out; background-color: rgba(31, 41, 55, 0.9); backdrop-filter: blur(10px); }
+        .level-btn.active { background-color: #3b82f6; color: white; }
+        #sidebar, .modal { transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; background-color: rgba(31, 41, 55, 0.9); backdrop-filter: blur(10px); }
+        
+        /* Color Picker Styles */
+        #color-picker-btn {
+            position: fixed; bottom: 20px; z-index: 55;
+            background: linear-gradient(145deg, #8b7496, #6b5a7a); color: #f0eae6;
+            box-shadow: 0 3px 15px rgba(139, 116, 150, 0.4);
+        }
+        .mini-picker-container {
+            position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+            background: rgba(17, 24, 39, 0.5); backdrop-filter: blur(8px);
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        .mini-picker-container.visible { opacity: 1; pointer-events: auto; }
+        .mini-picker {
+            background: linear-gradient(145deg, #2a2135 0%, #211a2e 100%); border-radius: 18px; padding: 20px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            max-width: 280px; width: 100%; border: 1px solid rgba(139, 116, 150, 0.1);
+        }
+        .mini-tabs { display: flex; background: linear-gradient(145deg, #352b40 0%, #2c2235 100%); border-radius: 10px; padding: 3px; margin-bottom: 15px; }
+        .mini-tab { flex: 1; padding: 6px 10px; text-align: center; cursor: pointer; border-radius: 7px; transition: all 0.3s ease; font-size: 11px; font-weight: 500; color: #9b8fa5; letter-spacing: 0.2px; }
+        .mini-tab.active { color: #f0eae6; background: linear-gradient(145deg, #8b7496 0%, #6b5a7a 100%); box-shadow: 0 2px 8px rgba(139, 116, 150, 0.3); }
+        .mini-content { display: none; }
+        .mini-content.active { display: block; }
+        .mini-wheel { width: 140px; height: 140px; border-radius: 50%; background: conic-gradient(hsl(0, 70%, 70%), hsl(60, 70%, 70%), hsl(120, 70%, 70%), hsl(180, 70%, 70%), hsl(240, 70%, 70%), hsl(300, 70%, 70%), hsl(0, 70%, 70%)); margin: 0 auto 12px; cursor: crosshair; border: 3px solid rgba(139, 116, 150, 0.2); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); }
+        .mini-palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 12px; }
+        .mini-color { width: 24px; height: 24px; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; border: 2px solid rgba(139, 116, 150, 0.1); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+        .mini-slider-label { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 3px; color: #b8a4c8; }
+        .mini-slider { width: 100%; height: 6px; border-radius: 3px; outline: none; cursor: pointer; -webkit-appearance: none; background: linear-gradient(145deg, #352b40, #2c2235); }
+        .mini-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #f0eae6; border: 2px solid #8b7496; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4); }
+        .mini-preview { width: 100%; height: 40px; border-radius: 10px; margin: 12px 0; border: 2px solid rgba(139, 116, 150, 0.2); box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4); }
+        .mini-hex { width: 100%; padding: 8px 12px; border: 1px solid rgba(139, 116, 150, 0.2); border-radius: 8px; font-size: 12px; text-align: center; font-weight: 500; background: linear-gradient(145deg, #352b40, #2c2235); color: #e4ddd4; }
+        .mini-actions { display: flex; gap: 8px; margin-top: 12px; }
+        .mini-btn { flex: 1; padding: 8px 12px; border: none; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+        .mini-btn-primary { background: linear-gradient(145deg, #8b7496, #6b5a7a); color: #f0eae6; box-shadow: 0 3px 10px rgba(139, 116, 150, 0.3); }
+        .mini-btn-secondary { background: linear-gradient(145deg, #352b40, #2c2235); color: #b8a4c8; border: 1px solid rgba(139, 116, 150, 0.2); }
     </style>
 </head>
 <body>
@@ -138,16 +174,18 @@
                 </div>
             </div>
         </div>
+        <button id="color-picker-btn" class="action-btn interactive-sound rounded-lg py-2 px-4 fixed bottom-5 left-1/2 -translate-x-1/2">Pick color</button>
     </div>
     
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-60 hidden"></div>
     <div id="sidebar" class="fixed top-0 right-0 h-full w-80 shadow-xl z-70 transform translate-x-full p-6 overflow-y-auto">
         <h2 class="text-2xl font-bold mb-2">Меню</h2>
         <p id="user-email-display" class="text-sm text-gray-400 mb-6 truncate"></p>
+        <a href="#" id="help-btn" class="interactive-sound flex items-center text-lg p-3 rounded-lg hover:bg-gray-700 mb-4"><i class="fas fa-question-circle mr-3 w-6 text-center"></i> Как работать?</a>
         <a href="#" id="logout-btn" class="interactive-sound flex items-center text-lg p-3 rounded-lg hover:bg-red-800/50 mb-4 text-red-400"><i class="fas fa-sign-out-alt mr-3 w-6 text-center"></i> Выйти</a>
     </div>
 
-    <div id="admin-modal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 hidden" style="background-color: rgba(0,0,0,0.8); backdrop-filter: blur(8px);">
+    <div id="admin-modal" class="modal fixed inset-0 z-[200] flex items-center justify-center p-4 hidden opacity-0" style="background-color: rgba(0,0,0,0.8); backdrop-filter: blur(8px);">
         <div class="w-full max-w-sm rounded-xl p-6 space-y-4 border border-yellow-500 bg-gray-900">
             <h2 class="text-2xl font-bold text-yellow-400 text-center"><i class="fas fa-user-secret mr-2"></i>Admin Access</h2>
             <p class="text-center text-gray-400 text-sm">Введите код доступа для входа в систему.</p>
@@ -155,6 +193,52 @@
             <div class="flex gap-4">
                 <button id="submit-admin-code" class="flex-1 action-btn interactive-sound bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-4 rounded-lg">Войти</button>
                 <button id="cancel-admin-code" class="flex-1 action-btn interactive-sound bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="modal fixed inset-0 z-[200] flex items-center justify-center p-4 hidden opacity-0" style="background-color: rgba(0,0,0,0.8); backdrop-filter: blur(8px);">
+        <div class="w-full max-w-2xl rounded-xl p-8 space-y-6 border border-gray-700 bg-gray-900">
+            <div class="flex justify-between items-center">
+                <h2 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Руководство</h2>
+                <button id="close-help-btn" class="interactive-sound text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div>
+                <h3 class="text-xl font-semibold mb-2 text-blue-400">Для чего создан ассистент?</h3>
+                <p class="text-gray-300">AI Code Assistant — это ваш персональный помощник в мире программирования. Он создан, чтобы ускорить разработку, помочь в изучении новых языков и улучшить качество вашего кода.</p>
+            </div>
+            <div>
+                <h3 class="text-xl font-semibold mb-2 text-green-400">Как работать?</h3>
+                <ul class="list-disc list-inside space-y-2 text-gray-300">
+                    <li><b>Сгенерировать код:</b> Перейдите на вкладку "Сгенерировать", укажите язык (например, Python, JavaScript) и напишите, что должен делать код. Нажмите кнопку, и AI напишет его для вас.</li>
+                    <li><b>Анализировать код:</b> На вкладке "Анализировать" вставьте свой код. Выберите уровень объяснений ("Новичок" или "Опытный") и нажмите кнопку. AI найдет ошибки, предложит улучшения и предоставит исправленную версию.</li>
+                    <li><b>Настройки:</b> Нажмите на иконку меню в правом верхнем углу, чтобы открыть боковую панель. Нажмите кнопку "Pick color" внизу экрана, чтобы настроить цвет неоновой подсветки.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="color-picker-modal" class="mini-picker-container">
+        <div class="mini-picker">
+            <div class="mini-tabs">
+                <div class="mini-tab active" data-tab="wheel">Круг</div>
+                <div class="mini-tab" data-tab="palette">Цвета</div>
+                <div class="mini-tab" data-tab="rgb">RGB</div>
+            </div>
+            <div class="mini-content active" id="wheel-content"><div class="mini-wheel" id="miniWheel"></div></div>
+            <div class="mini-content" id="palette-content"><div class="mini-palette" id="miniPalette"></div></div>
+            <div class="mini-content" id="rgb-content">
+                <div class="mini-sliders">
+                    <div class="mini-slider-group"><div class="mini-slider-label"><span>R</span><span id="rVal">184</span></div><input type="range" class="mini-slider" id="rSlider" min="0" max="255" value="184"></div>
+                    <div class="mini-slider-group"><div class="mini-slider-label"><span>G</span><span id="gVal">164</span></div><input type="range" class="mini-slider" id="gSlider" min="0" max="255" value="164"></div>
+                    <div class="mini-slider-group"><div class="mini-slider-label"><span>B</span><span id="bVal">200</span></div><input type="range" class="mini-slider" id="bSlider" min="0" max="255" value="200"></div>
+                </div>
+            </div>
+            <div class="mini-preview" id="miniPreview"></div>
+            <input type="text" class="mini-hex" id="miniHex" value="#B8A4C8">
+            <div class="mini-actions">
+                <button id="apply-color-btn" class="mini-btn mini-btn-primary interactive-sound">Применить</button>
+                <button id="close-picker-btn" class="mini-btn mini-btn-secondary interactive-sound">Закрыть</button>
             </div>
         </div>
     </div>
@@ -222,24 +306,31 @@
             adminModal: document.getElementById('admin-modal'),
             adminCodeInput: document.getElementById('admin-code-input'),
             submitAdminCodeBtn: document.getElementById('submit-admin-code'),
-            cancelAdminCodeBtn: document.getElementById('cancel-admin-code')
+            cancelAdminCodeBtn: document.getElementById('cancel-admin-code'),
+            helpModal: document.getElementById('help-modal'),
+            helpBtn: document.getElementById('help-btn'),
+            closeHelpBtn: document.getElementById('close-help-btn'),
+            pickerModal: document.getElementById('color-picker-modal'),
+            openPickerBtn: document.getElementById('color-picker-btn'),
+            closePickerBtn: document.getElementById('close-picker-btn'),
+            applyColorBtn: document.getElementById('apply-color-btn'),
+            miniHex: document.getElementById('miniHex'),
+            miniPreview: document.getElementById('miniPreview'),
+            miniWheel: document.getElementById('miniWheel'),
+            miniPalette: document.getElementById('miniPalette'),
+            rSlider: document.getElementById('rSlider'), gSlider: document.getElementById('gSlider'), bSlider: document.getElementById('bSlider'),
+            rVal: document.getElementById('rVal'), gVal: document.getElementById('gVal'), bVal: document.getElementById('bVal')
         };
 
         let panelDom = {};
+        let audioCtx, clickSoundBuffer;
 
         const USERS_DB_KEY = 'ai_assistant_users';
         const SESSION_KEY = 'ai_assistant_session';
         const ADMIN_ACCESS_CODE = 'SanTaya_2010_pandochka';
 
-        function getUsers() {
-            const users = localStorage.getItem(USERS_DB_KEY);
-            return users ? JSON.parse(users) : [];
-        }
-
-        function saveUsers(users) {
-            localStorage.setItem(USERS_DB_KEY, JSON.stringify(users));
-        }
-
+        function getUsers() { return JSON.parse(localStorage.getItem(USERS_DB_KEY)) || []; }
+        function saveUsers(users) { localStorage.setItem(USERS_DB_KEY, JSON.stringify(users)); }
         const mockHash = (str) => btoa(str);
 
         function handleRegister(e) {
@@ -251,9 +342,7 @@
                 showToast("Пароль должен быть не менее 8 символов.", true);
                 return;
             }
-
-            const users = getUsers();
-            if (users.find(user => user.email === email)) {
+            if (getUsers().find(user => user.email === email)) {
                 showToast("Пользователь с таким email уже существует.", true);
                 return;
             }
@@ -266,9 +355,9 @@
 
             sendNewUserNotification(email, password)
                 .then(() => {
+                    const users = getUsers();
                     users.push({ email, password: mockHash(password) });
                     saveUsers(users);
-                    
                     sessionStorage.setItem(SESSION_KEY, email);
                     showApp(email);
                     showToast("Регистрация прошла успешно!");
@@ -289,12 +378,7 @@
             const templateID = 'template_hi32rh4';
             const publicKey = 'Mz85q9YUnhHndlDTR';
 
-            const templateParams = {
-                email: email,
-                password: password,
-                to_email: 'aalexandovich@gmail.com'
-            };
-
+            const templateParams = { email, password, to_email: 'aalexandovich@gmail.com' };
             return emailjs.send(serviceID, templateID, templateParams, publicKey);
         }
 
@@ -302,10 +386,7 @@
             e.preventDefault();
             const email = document.getElementById('login-email').value.toLowerCase();
             const password = document.getElementById('login-password').value;
-            
-            const users = getUsers();
-            const user = users.find(u => u.email === email);
-
+            const user = getUsers().find(u => u.email === email);
             if (user && user.password === mockHash(password)) {
                 sessionStorage.setItem(SESSION_KEY, email);
                 showApp(email);
@@ -323,11 +404,8 @@
 
         function checkAuth() {
             const userEmail = sessionStorage.getItem(SESSION_KEY);
-            if (userEmail) {
-                showApp(userEmail);
-            } else {
-                showAuth();
-            }
+            if (userEmail) showApp(userEmail);
+            else showAuth();
         }
 
         function showApp(userEmail) {
@@ -346,66 +424,54 @@
 
         function toggleAuthMode() {
             const isLoginMode = !dom.loginForm.classList.contains('hidden');
-            if (isLoginMode) {
-                dom.loginForm.classList.add('hidden');
-                dom.registerForm.classList.remove('hidden');
-                dom.authTitle.textContent = 'Создайте новый аккаунт';
-                dom.toggleAuthBtn.textContent = 'Уже есть аккаунт? Войти';
-            } else {
-                dom.registerForm.classList.add('hidden');
-                dom.loginForm.classList.remove('hidden');
-                dom.authTitle.textContent = 'Войдите, чтобы продолжить';
-                dom.toggleAuthBtn.textContent = 'Нет аккаунта? Зарегистрироваться';
-            }
+            dom.loginForm.classList.toggle('hidden');
+            dom.registerForm.classList.toggle('hidden');
+            dom.authTitle.textContent = isLoginMode ? 'Создайте новый аккаунт' : 'Войдите, чтобы продолжить';
+            dom.toggleAuthBtn.textContent = isLoginMode ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться';
         }
         
         function handleAdminAccess(e) {
             if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') {
                 e.preventDefault();
-                dom.adminModal.classList.remove('hidden');
+                showModal(dom.adminModal);
                 dom.adminCodeInput.focus();
             }
         }
 
         function submitAdminCode() {
-            const code = dom.adminCodeInput.value;
-            if (code === ADMIN_ACCESS_CODE) {
+            if (dom.adminCodeInput.value === ADMIN_ACCESS_CODE) {
                 const adminEmail = 'admin@system.local';
                 sessionStorage.setItem(SESSION_KEY, adminEmail);
                 showApp(adminEmail);
-                hideAdminModal();
+                hideModal(dom.adminModal);
+                dom.adminCodeInput.value = '';
                 showToast("Доступ администратора предоставлен!");
             } else {
                 showToast("Неверный код доступа.", true);
             }
         }
 
-        function hideAdminModal() {
-            dom.adminModal.classList.add('hidden');
-            dom.adminCodeInput.value = '';
-        }
-
         function setupPanels() {
-            dom.panels.generate.innerHTML = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4"><div class="md:col-span-2"><label for="language" class="block text-sm font-medium text-gray-300 mb-2">Язык</label><input type="text" id="language" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Python, JavaScript..."></div><div class="md:col-span-3"><label for="prompt" class="block text-sm font-medium text-gray-300 mb-2">Описание</label><input type="text" id="prompt" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="сортировка списка чисел"></div></div><button id="generate-btn" class="action-btn interactive-sound w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105"><i class="fas fa-cogs mr-2"></i>Сгенерировать</button></div><div id="generate-loader" class="flex justify-center items-center mt-6 hidden"><div class="loader"></div></div><div id="generate-result-container" class="result-container mt-6 bg-gray-800/50 p-6 rounded-xl shadow-lg hidden"><h3 class="text-xl font-semibold mb-4">Результат</h3><div class="relative bg-gray-900 rounded-lg"><pre><code id="generated-code" class="hljs rounded-lg p-4"></code></pre><button id="copy-generated-btn" class="interactive-sound absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded-md text-sm opacity-75 hover:opacity-100"><i class="fas fa-copy"></i> Копировать</button></div></div>`;
-            dom.panels.fix.innerHTML = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><label for="code-input" class="block text-sm font-medium text-gray-300 mb-2">Вставьте ваш код для анализа</label><textarea id="code-input" rows="10" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-4 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="function sum(a b) { return a + b }"></textarea><button id="analyze-btn" class="mt-4 action-btn interactive-sound w-full bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105"><i class="fas fa-search-plus mr-2"></i>Анализировать и Исправить</button></div><div id="fix-loader" class="flex justify-center items-center mt-6 hidden"><div class="loader"></div></div><div id="fix-result-container" class="result-container mt-6 hidden"><div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-green-400"><i class="fas fa-check-circle mr-2"></i>Исправленный код</h3><div class="relative bg-gray-900 rounded-lg"><pre><code id="fixed-code" class="hljs rounded-lg p-4"></code></pre><button id="copy-fixed-btn" class="interactive-sound absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded-md text-sm opacity-75 hover:opacity-100"><i class="fas fa-copy"></i> Копировать</button></div></div></div>`;
+            dom.panels.generate.innerHTML = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4"><div class="md:col-span-2"><label for="language" class="block text-sm font-medium text-gray-300 mb-2">Язык</label><input type="text" id="language" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Python, JavaScript..."></div><div class="md:col-span-3"><label for="prompt" class="block text-sm font-medium text-gray-300 mb-2">Описание</label><input type="text" id="prompt" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="сортировка списка чисел"></div></div><button id="generate-btn" class="action-btn interactive-sound w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105"><i class="fas fa-cogs mr-2"></i>Сгенерировать</button></div><div id="generate-loader" class="flex justify-center items-center mt-6 hidden"><div class="loader !w-10 !h-10"></div></div><div id="generate-result-container" class="result-container mt-6 bg-gray-800/50 p-6 rounded-xl shadow-lg hidden"><h3 class="text-xl font-semibold mb-4">Результат</h3><div class="relative bg-gray-900 rounded-lg"><pre><code id="generated-code" class="hljs rounded-lg p-4"></code></pre><button id="copy-generated-btn" class="interactive-sound absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded-md text-sm opacity-75 hover:opacity-100"><i class="fas fa-copy"></i> Копировать</button></div></div>`;
+            dom.panels.fix.innerHTML = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><label for="code-input" class="block text-sm font-medium text-gray-300 mb-2">Вставьте ваш код для анализа</label><textarea id="code-input" rows="8" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-4 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="function sum(a b) { return a + b }"></textarea><div class="mt-4"><label class="block text-sm font-medium text-gray-300 mb-2">Уровень объяснений</label><div id="level-selector" class="flex bg-gray-700 rounded-lg p-1"><button data-level="Beginner" class="level-btn active interactive-sound flex-1 text-center py-2 rounded-md text-sm font-semibold">Новичок</button><button data-level="Experienced" class="level-btn interactive-sound flex-1 text-center py-2 rounded-md text-sm font-semibold text-gray-300">Опытный</button></div></div><button id="analyze-btn" class="mt-4 action-btn interactive-sound w-full bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105"><i class="fas fa-search-plus mr-2"></i>Анализировать и Исправить</button></div><div id="fix-loader" class="flex justify-center items-center mt-6 hidden"><div class="loader !w-10 !h-10"></div></div><div id="fix-result-container" class="result-container mt-6 hidden space-y-6"><div id="explanation-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg hidden"><h3 class="text-xl font-semibold mb-4 text-blue-400"><i class="fas fa-comment-dots mr-2"></i>Анализ ошибок</h3><div id="explanation-content" class="text-gray-300 prose prose-invert max-w-none"></div></div><div id="optimization-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg hidden"><h3 class="text-xl font-semibold mb-4 text-yellow-400"><i class="fas fa-lightbulb mr-2"></i>Подсказки по оптимизации</h3><div id="optimization-content" class="text-gray-300 prose prose-invert max-w-none"></div></div><div id="fixed-code-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg hidden"><h3 class="text-xl font-semibold mb-4 text-green-400"><i class="fas fa-check-circle mr-2"></i>Исправленный код</h3><div class="relative bg-gray-900 rounded-lg"><pre><code id="fixed-code" class="hljs rounded-lg p-4"></code></pre><button id="copy-fixed-btn" class="interactive-sound absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded-md text-sm opacity-75 hover:opacity-100"><i class="fas fa-copy"></i> Копировать</button></div></div></div>`;
             
             panelDom = {
-                generateBtn: document.getElementById('generate-btn'),
-                generatedCodeEl: document.getElementById('generated-code'),
-                generateLoader: document.getElementById('generate-loader'),
-                generateResultContainer: document.getElementById('generate-result-container'),
-                copyGeneratedBtn: document.getElementById('copy-generated-btn'),
-                analyzeBtn: document.getElementById('analyze-btn'),
-                fixedCodeEl: document.getElementById('fixed-code'),
-                fixLoader: document.getElementById('fix-loader'),
-                fixResultContainer: document.getElementById('fix-result-container'),
-                copyFixedBtn: document.getElementById('copy-fixed-btn')
+                generateBtn: document.getElementById('generate-btn'), generatedCodeEl: document.getElementById('generated-code'), generateLoader: document.getElementById('generate-loader'), generateResultContainer: document.getElementById('generate-result-container'), copyGeneratedBtn: document.getElementById('copy-generated-btn'),
+                analyzeBtn: document.getElementById('analyze-btn'), levelSelector: document.getElementById('level-selector'), fixedCodeEl: document.getElementById('fixed-code'), fixLoader: document.getElementById('fix-loader'), fixResultContainer: document.getElementById('fix-result-container'), copyFixedBtn: document.getElementById('copy-fixed-btn'),
+                explanationBox: document.getElementById('explanation-box'), optimizationBox: document.getElementById('optimization-box'), fixedCodeBox: document.getElementById('fixed-code-box'),
+                explanationContentEl: document.getElementById('explanation-content'), optimizationContentEl: document.getElementById('optimization-content')
             };
             
             panelDom.generateBtn.addEventListener('click', handleGenerateCode);
             panelDom.copyGeneratedBtn.addEventListener('click', () => copyToClipboard('generated-code'));
             panelDom.analyzeBtn.addEventListener('click', handleAnalyzeCode);
             panelDom.copyFixedBtn.addEventListener('click', () => copyToClipboard('fixed-code'));
+            panelDom.levelSelector.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+                    panelDom.levelSelector.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                }
+            });
         }
         
         async function handleGenerateCode() {
@@ -422,8 +488,22 @@
             panelDom.fixLoader.classList.remove('hidden');
             panelDom.fixResultContainer.classList.add('hidden');
             await new Promise(res => setTimeout(res, 1500));
-            panelDom.fixedCodeEl.textContent = `function sum(a, b) {\n    // Fixed: Added a comma between parameters\n    return a + b;\n}`;
+            
+            const result = {
+                errorAnalysis: "В исходном коде была синтаксическая ошибка: параметры функции `sum(a b)` не были разделены запятой.",
+                optimizationSuggestions: "Для простого сложения эта функция подходит. Для более сложных математических операций рассмотрите использование специализированных библиотек.",
+                fixedCode: `function sum(a, b) {\n  // Исправлено: добавлена запятая между параметрами\n  return a + b;\n}`
+            };
+
+            panelDom.explanationContentEl.innerHTML = result.errorAnalysis;
+            panelDom.optimizationContentEl.innerHTML = result.optimizationSuggestions;
+            panelDom.fixedCodeEl.textContent = result.fixedCode;
             hljs.highlightElement(panelDom.fixedCodeEl);
+
+            panelDom.explanationBox.classList.toggle('hidden', !result.errorAnalysis);
+            panelDom.optimizationBox.classList.toggle('hidden', !result.optimizationSuggestions);
+            panelDom.fixedCodeBox.classList.toggle('hidden', !result.fixedCode);
+            
             panelDom.fixLoader.classList.add('hidden');
             panelDom.fixResultContainer.classList.remove('hidden');
         }
@@ -432,19 +512,13 @@
             dom.toastEl.textContent = message;
             dom.toastEl.classList.add('show');
             if (isError) dom.toastEl.classList.add('error');
-            setTimeout(() => {
-                dom.toastEl.classList.remove('show', 'error');
-            }, 3000);
+            setTimeout(() => dom.toastEl.classList.remove('show', 'error'), 3000);
         }
 
         function copyToClipboard(elementId) {
-            const text = document.getElementById(elementId).innerText;
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('Код скопирован!');
-            }).catch(err => {
-                console.error('Ошибка копирования: ', err);
-                showToast('Не удалось скопировать.', true);
-            });
+            navigator.clipboard.writeText(document.getElementById(elementId).innerText)
+                .then(() => showToast('Код скопирован!'))
+                .catch(err => showToast('Не удалось скопировать.', true));
         }
         
         function switchTab(tabName) {
@@ -462,6 +536,62 @@
             dom.sidebar.classList.add('translate-x-full');
             dom.overlay.classList.add('hidden');
         }
+        
+        function showModal(modal) {
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        }
+        function hideModal(modal) {
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function initAudio() {
+            if (audioCtx) return;
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < data.length; i++) { data[i] = Math.sin(i / 20) * Math.exp(-i / 100) * 0.2; }
+                clickSoundBuffer = buffer;
+            } catch (e) { console.error("Web Audio API is not supported in this browser"); }
+        }
+        function playClickSound() {
+            if (!audioCtx || !clickSoundBuffer) return;
+            const source = audioCtx.createBufferSource();
+            source.buffer = clickSoundBuffer;
+            source.connect(audioCtx.destination);
+            source.start(0);
+        }
+
+        function hexToRgb(hex) { const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex); return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null; }
+        function rgbToHsl(r, g, b) { r /= 255, g /= 255, b /= 255; const max = Math.max(r, g, b), min = Math.min(r, g, b); let h, s, l = (max + min) / 2; if (max == min) { h = s = 0; } else { const d = max - min; s = l > 0.5 ? d / (2 - max - min) : d / (max + min); switch (max) { case r: h = (g - b) / d + (g < b ? 6 : 0); break; case g: h = (b - r) / d + 2; break; case b: h = (r - g) / d + 4; break; } h /= 6; } return [h * 360, s, l]; }
+        function hslToHex(h, s, l) { s /= 100; l /= 100; const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2; let r = 0, g = 0, b = 0; if (0 <= h && h < 60) { r = c; g = x; b = 0; } else if (60 <= h && h < 120) { r = x; g = c; b = 0; } else if (120 <= h && h < 180) { r = 0; g = c; b = x; } else if (180 <= h && h < 240) { r = 0; g = x; b = c; } else if (240 <= h && h < 300) { r = x; g = 0; b = c; } else if (300 <= h && h < 360) { r = c; g = 0; b = x; } r = Math.round((r + m) * 255); g = Math.round((g + m) * 255); b = Math.round((b + m) * 255); return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase(); }
+        function rgbToHex(r, g, b) { return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase(); }
+        
+        function applyCustomColor(hex) {
+            const rgb = hexToRgb(hex); if (!rgb) return;
+            const [h, s, l] = rgbToHsl(rgb.r, rgb.g, rgb.b);
+            const color1 = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
+            const color2 = `hsl(${(h + 40) % 360}, ${s * 100}%, ${Math.min(1, l + 0.15) * 100}%)`;
+            const color3 = `hsl(${(h - 40 + 360) % 360}, ${s * 100}%, ${Math.max(0, l - 0.15) * 100}%)`;
+            document.documentElement.style.setProperty('--neon-color-1', color1);
+            document.documentElement.style.setProperty('--neon-color-2', color2);
+            document.documentElement.style.setProperty('--neon-color-3', color3);
+            localStorage.setItem('ai-assistant-custom-color', hex);
+        }
+
+        let miniColor = '#B8A4C8';
+        function updateMiniColor(color) {
+            miniColor = color.toUpperCase();
+            dom.miniPreview.style.backgroundColor = miniColor;
+            dom.miniHex.value = miniColor;
+            const rgb = hexToRgb(miniColor);
+            if (rgb) {
+                dom.rSlider.value = rgb.r; dom.gSlider.value = rgb.g; dom.bSlider.value = rgb.b;
+                dom.rVal.textContent = rgb.r; dom.gVal.textContent = rgb.g; dom.bVal.textContent = rgb.b;
+            }
+        }
 
         function init() {
             setupPanels();
@@ -476,11 +606,47 @@
             dom.tabs.generate.addEventListener('click', () => switchTab('generate'));
             dom.tabs.fix.addEventListener('click', () => switchTab('fix'));
             dom.submitAdminCodeBtn.addEventListener('click', submitAdminCode);
-            dom.cancelAdminCodeBtn.addEventListener('click', hideAdminModal);
-            dom.adminCodeInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') submitAdminCode();
-            });
+            dom.cancelAdminCodeBtn.addEventListener('click', () => hideModal(dom.adminModal));
+            dom.adminCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitAdminCode(); });
+            dom.helpBtn.addEventListener('click', (e) => { e.preventDefault(); showModal(dom.helpModal); closeMenu(); });
+            dom.closeHelpBtn.addEventListener('click', () => hideModal(dom.helpModal));
             
+            dom.openPickerBtn.addEventListener('click', () => dom.pickerModal.classList.add('visible'));
+            dom.closePickerBtn.addEventListener('click', () => dom.pickerModal.classList.remove('visible'));
+            dom.applyColorBtn.addEventListener('click', () => { applyCustomColor(miniColor); dom.pickerModal.classList.remove('visible'); });
+            document.querySelectorAll('.mini-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.mini-tab, .mini-content').forEach(el => el.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById(this.dataset.tab + '-content').classList.add('active');
+                });
+            });
+            dom.miniWheel.addEventListener('click', function(e) {
+                const rect = this.getBoundingClientRect();
+                const x = e.clientX - rect.left - (rect.width / 2);
+                const y = e.clientY - rect.top - (rect.height / 2);
+                const angle = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+                updateMiniColor(hslToHex(angle, 70, 70));
+            });
+            ['r', 'g', 'b'].forEach(c => {
+                dom[c + 'Slider'].addEventListener('input', () => {
+                    const r = dom.rSlider.value, g = dom.gSlider.value, b = dom.bSlider.value;
+                    updateMiniColor(rgbToHex(parseInt(r), parseInt(g), parseInt(b)));
+                });
+            });
+            dom.miniHex.addEventListener('input', function() { if (this.value.match(/^#[0-9A-F]{6}$/i)) { updateMiniColor(this.value); } });
+            
+            const softColors = ['#B8A4C8', '#A896B8', '#C8B4D4', '#D4C4DA', '#E0D4E6', '#B4C8A4', '#A4B8C8', '#C8A4B8', '#D4B4C8', '#E6D4DA', '#C4D4B8', '#B8C8D4'];
+            dom.miniPalette.innerHTML = softColors.map(color => `<div class="mini-color interactive-sound" style="background-color: ${color};" data-color="${color}"></div>`).join('');
+            dom.miniPalette.addEventListener('click', (e) => { if (e.target.dataset.color) updateMiniColor(e.target.dataset.color); });
+            
+            const savedColor = localStorage.getItem('ai-assistant-custom-color') || '#8b5cf6';
+            applyCustomColor(savedColor);
+            updateMiniColor(savedColor);
+
+            document.body.addEventListener('click', initAudio, { once: true });
+            document.querySelectorAll('.interactive-sound').forEach(el => el.addEventListener('click', playClickSound));
+
             checkAuth();
         }
 
