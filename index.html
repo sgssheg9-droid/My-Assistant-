@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
     
     <title>AI Code Assistant - Ваш помощник в программировании</title>
     <meta name="description" content="Бесплатный AI-ассистент для генерации, анализа и оптимизации вашего кода.">
@@ -56,11 +56,10 @@
 
         .tab-btn, .action-btn, input, textarea, button, .level-btn { transition: all 0.3s ease; }
         .tab-btn.active { color: #60a5fa; border-color: #60a5fa; }
-        #tab-admin.active { color: #facc15; border-color: #facc15; } /* Yellow for admin tab */
+        #tab-admin.active { color: #facc15; border-color: #facc15; }
         .level-btn.active { background-color: #3b82f6; color: white; }
         #sidebar, .modal { transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; background-color: rgba(31, 41, 55, 0.9); backdrop-filter: blur(10px); }
         
-        /* Color Picker Styles */
         #color-picker-btn {
             position: fixed; bottom: 20px; z-index: 55;
             background: linear-gradient(145deg, #8b7496, #6b5a7a); color: #f0eae6;
@@ -181,14 +180,12 @@
                         <nav class="-mb-px flex space-x-6" aria-label="Tabs">
                             <button id="tab-generate" class="tab-btn active interactive-sound whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg"><i class="fas fa-magic mr-2"></i>Сгенерировать</button>
                             <button id="tab-fix" class="tab-btn interactive-sound text-gray-400 border-transparent hover:text-gray-200 hover:border-gray-500 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg"><i class="fas fa-wrench mr-2"></i>Анализировать</button>
-                            <!-- Новая вкладка для админа, скрыта по умолчанию -->
                             <button id="tab-admin" class="tab-btn hidden interactive-sound text-gray-400 border-transparent hover:text-yellow-300 hover:border-yellow-400 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg"><i class="fas fa-user-shield mr-2"></i>Админ</button>
                         </nav>
                     </div>
 
                     <div id="panel-generate" class="tab-panel"></div>
                     <div id="panel-fix" class="tab-panel hidden"></div>
-                    <!-- Новая панель для админа, скрыта по умолчанию -->
                     <div id="panel-admin" class="tab-panel hidden"></div>
                 </div>
             </div>
@@ -322,16 +319,8 @@
             menuBtn: document.getElementById('menu-btn'),
             logoutBtn: document.getElementById('logout-btn'),
             userEmailDisplay: document.getElementById('user-email-display'),
-            tabs: { 
-                generate: document.getElementById('tab-generate'), 
-                fix: document.getElementById('tab-fix'),
-                admin: document.getElementById('tab-admin') // Admin tab
-            },
-            panels: { 
-                generate: document.getElementById('panel-generate'), 
-                fix: document.getElementById('panel-fix'),
-                admin: document.getElementById('panel-admin') // Admin panel
-            },
+            tabs: { generate: document.getElementById('tab-generate'), fix: document.getElementById('tab-fix'), admin: document.getElementById('tab-admin') },
+            panels: { generate: document.getElementById('panel-generate'), fix: document.getElementById('panel-fix'), admin: document.getElementById('panel-admin') },
             adminModal: document.getElementById('admin-modal'),
             adminCodeInput: document.getElementById('admin-code-input'),
             submitAdminCodeBtn: document.getElementById('submit-admin-code'),
@@ -358,9 +347,34 @@
         const SESSION_KEY = 'ai_assistant_session';
         const ADMIN_ACCESS_CODE = 'SanTaya_2010_pandochka';
 
+        // --- NEW: Secure Hashing Functions ---
+        /**
+         * Hashes a password with a given salt using SHA-256.
+         * @param {string} password - The password to hash.
+         * @param {string} salt - The salt to use.
+         * @returns {Promise<string>} The hexadecimal hash string.
+         */
+        async function hashPassword(password, salt) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password + salt);
+            const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        /**
+         * Generates a random salt.
+         * @returns {string} A random hexadecimal string.
+         */
+        function generateSalt() {
+            const array = new Uint8Array(16);
+            window.crypto.getRandomValues(array);
+            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+        // --- END: Secure Hashing Functions ---
+
         function getUsers() { return JSON.parse(localStorage.getItem(USERS_DB_KEY)) || []; }
         function saveUsers(users) { localStorage.setItem(USERS_DB_KEY, JSON.stringify(users)); }
-        const mockHash = (str) => btoa(str);
 
         function sendVerificationEmail(email, code) {
             const serviceID = 'service_jye3v09';
@@ -370,7 +384,8 @@
             return emailjs.send(serviceID, templateID, templateParams, publicKey);
         }
 
-        function handleRegister(e) {
+        // MODIFIED: Uses hashing and salt
+        async function handleRegister(e) {
             e.preventDefault();
             const email = document.getElementById('reg-email').value.toLowerCase();
             const password = document.getElementById('reg-password').value;
@@ -379,7 +394,6 @@
                 showToast("Этот email зарезервирован.", true);
                 return;
             }
-
             if (password.length < 8) {
                 showToast("Пароль должен быть не менее 8 символов.", true);
                 return;
@@ -395,8 +409,13 @@
             btnLoader.classList.remove('hidden');
             dom.registerSubmitBtn.disabled = true;
 
+            // Generate salt and hash the password
+            const salt = generateSalt();
+            const hashedPassword = await hashPassword(password, salt);
+
             const verificationCode = Math.floor(100000 + Math.random() * 900000);
-            const pendingUser = { email, password: mockHash(password), code: verificationCode };
+            // Store the hashed password and salt temporarily
+            const pendingUser = { email, password: hashedPassword, salt, code: verificationCode };
             sessionStorage.setItem('pending_verification', JSON.stringify(pendingUser));
 
             sendVerificationEmail(email, verificationCode)
@@ -419,6 +438,7 @@
                 });
         }
         
+        // MODIFIED: Saves the hashed password and salt
         function handleVerification(e) {
             e.preventDefault();
             const enteredCode = document.getElementById('verification-code').value;
@@ -433,7 +453,8 @@
 
             if (parseInt(enteredCode) === pendingUser.code) {
                 const users = getUsers();
-                users.push({ email: pendingUser.email, password: pendingUser.password });
+                // Save user with email, HASHED password, and salt
+                users.push({ email: pendingUser.email, password: pendingUser.password, salt: pendingUser.salt });
                 saveUsers(users);
 
                 sessionStorage.removeItem('pending_verification');
@@ -445,15 +466,22 @@
             }
         }
 
-        function handleLogin(e) {
+        // MODIFIED: Compares hashes during login
+        async function handleLogin(e) {
             e.preventDefault();
             const email = document.getElementById('login-email').value.toLowerCase();
             const password = document.getElementById('login-password').value;
             const user = getUsers().find(u => u.email === email);
-            if (user && user.password === mockHash(password)) {
-                sessionStorage.setItem(SESSION_KEY, email);
-                showApp(email);
-                showToast("Вход выполнен успешно!");
+
+            if (user && user.salt) {
+                const hashedPassword = await hashPassword(password, user.salt);
+                if (hashedPassword === user.password) {
+                    sessionStorage.setItem(SESSION_KEY, email);
+                    showApp(email);
+                    showToast("Вход выполнен успешно!");
+                } else {
+                    showToast("Неверный email или пароль.", true);
+                }
             } else {
                 showToast("Неверный email или пароль.", true);
             }
@@ -461,7 +489,7 @@
 
         function handleLogout() {
             sessionStorage.removeItem(SESSION_KEY);
-            dom.tabs.admin.classList.add('hidden'); // Hide admin tab on logout
+            dom.tabs.admin.classList.add('hidden');
             showAuth();
             closeMenu();
         }
@@ -478,7 +506,7 @@
             dom.userEmailDisplay.textContent = userEmail;
             if (userEmail === 'admin@system.local') {
                 dom.userEmailDisplay.innerHTML += ' <i class="fas fa-crown text-yellow-400"></i>';
-                dom.tabs.admin.classList.remove('hidden'); // Show admin tab
+                dom.tabs.admin.classList.remove('hidden');
             }
         }
 
@@ -548,7 +576,6 @@
             await new Promise(res => setTimeout(res, 1500));
             
             let codeResult = `def hello_world():\n    """This is a sample function."""\n    print("Hello from AI Assistant!")\n\nhello_world()`;
-            // "God Mode" for Admin
             if (userEmail === 'admin@system.local') {
                 codeResult = `class AdvancedSort:\n    def __init__(self, data):\n        self.data = data\n\n    def quick_sort(self):\n        # Admin-level complex implementation\n        print("Performing advanced sort...")\n        return sorted(self.data)\n\n# God-Mode code generated for Admin\nsorter = AdvancedSort([5, 2, 8, 1, 9])\nprint(sorter.quick_sort())`;
             }
@@ -563,6 +590,7 @@
             const userEmail = sessionStorage.getItem(SESSION_KEY);
             panelDom.fixLoader.classList.remove('hidden');
             panelDom.fixResultContainer.classList.add('hidden');
+            panelDom.fixResultContainer.innerHTML = ''; // Clear previous admin results
             await new Promise(res => setTimeout(res, 1500));
             
             let result = {
@@ -571,18 +599,26 @@
                 fixedCode: `function sum(a, b) {\n  // Исправлено: добавлена запятая между параметрами\n  return a + b;\n}`
             };
 
-            // "God Mode" for Admin
             if (userEmail === 'admin@system.local') {
                 result.securityAnalysis = "Обнаружена потенциальная уязвимость: входные данные не проходят валидацию, что может привести к инъекции кода.";
                 result.performanceMetrics = "Время выполнения: 0.2мс. Потребление памяти: 128КБ. Рекомендация: для больших наборов данных использовать более эффективный алгоритм.";
             }
 
-            panelDom.explanationContentEl.innerHTML = result.errorAnalysis;
-            panelDom.optimizationContentEl.innerHTML = result.optimizationSuggestions;
-            panelDom.fixedCodeEl.textContent = result.fixedCode;
-            hljs.highlightElement(panelDom.fixedCodeEl);
+            // Re-create the base structure
+            panelDom.fixResultContainer.innerHTML = `
+                <div id="explanation-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-blue-400"><i class="fas fa-comment-dots mr-2"></i>Анализ ошибок</h3><div id="explanation-content" class="text-gray-300 prose prose-invert max-w-none"></div></div>
+                <div id="optimization-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-yellow-400"><i class="fas fa-lightbulb mr-2"></i>Подсказки по оптимизации</h3><div id="optimization-content" class="text-gray-300 prose prose-invert max-w-none"></div></div>
+                <div id="fixed-code-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-green-400"><i class="fas fa-check-circle mr-2"></i>Исправленный код</h3><div class="relative bg-gray-900 rounded-lg"><pre><code id="fixed-code" class="hljs rounded-lg p-4"></code></pre><button id="copy-fixed-btn" class="interactive-sound absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded-md text-sm opacity-75 hover:opacity-100"><i class="fas fa-copy"></i> Копировать</button></div></div>
+            `;
+            
+            document.getElementById('explanation-content').innerHTML = result.errorAnalysis;
+            document.getElementById('optimization-content').innerHTML = result.optimizationSuggestions;
+            const fixedCodeEl = document.getElementById('fixed-code');
+            fixedCodeEl.textContent = result.fixedCode;
+            hljs.highlightElement(fixedCodeEl);
+            document.getElementById('copy-fixed-btn').addEventListener('click', () => copyToClipboard('fixed-code'));
 
-            // Dynamically create and show admin-only sections
+
             if (result.securityAnalysis) {
                 const securityBox = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-red-400"><i class="fas fa-shield-alt mr-2"></i>Анализ безопасности (Admin)</h3><div class="text-gray-300">${result.securityAnalysis}</div></div>`;
                 panelDom.fixResultContainer.insertAdjacentHTML('beforeend', securityBox);
@@ -591,10 +627,6 @@
                 const perfBox = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-cyan-400"><i class="fas fa-tachometer-alt mr-2"></i>Метрики (Admin)</h3><div class="text-gray-300">${result.performanceMetrics}</div></div>`;
                 panelDom.fixResultContainer.insertAdjacentHTML('beforeend', perfBox);
             }
-
-            panelDom.explanationBox.classList.remove('hidden');
-            panelDom.optimizationBox.classList.remove('hidden');
-            panelDom.fixedCodeBox.classList.remove('hidden');
             
             panelDom.fixLoader.classList.add('hidden');
             panelDom.fixResultContainer.classList.remove('hidden');
@@ -640,7 +672,7 @@
             users = users.filter(user => user.email !== email);
             saveUsers(users);
             showToast(`Пользователь ${email} удален.`, false);
-            renderAdminPanel(); // Re-render the panel to show the updated list
+            renderAdminPanel();
         }
 
         function showToast(message, isError = false) {
@@ -651,9 +683,12 @@
         }
 
         function copyToClipboard(elementId) {
-            navigator.clipboard.writeText(document.getElementById(elementId).innerText)
-                .then(() => showToast('Код скопирован!'))
-                .catch(err => showToast('Не удалось скопировать.', true));
+            const text = document.getElementById(elementId)?.innerText;
+            if (text) {
+                navigator.clipboard.writeText(text)
+                    .then(() => showToast('Код скопирован!'))
+                    .catch(err => showToast('Не удалось скопировать.', true));
+            }
         }
         
         function switchTab(tabName) {
@@ -733,7 +768,7 @@
             dom.overlay.addEventListener('click', closeMenu);
             dom.tabs.generate.addEventListener('click', () => switchTab('generate'));
             dom.tabs.fix.addEventListener('click', () => switchTab('fix'));
-            dom.tabs.admin.addEventListener('click', () => switchTab('admin')); // Event listener for admin tab
+            dom.tabs.admin.addEventListener('click', () => switchTab('admin'));
             dom.submitAdminCodeBtn.addEventListener('click', submitAdminCode);
             dom.cancelAdminCodeBtn.addEventListener('click', () => hideModal(dom.adminModal));
             dom.adminCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitAdminCode(); });
