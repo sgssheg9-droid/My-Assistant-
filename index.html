@@ -4,6 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self'; 
+        script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://generativelanguage.googleapis.com;
+        style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com;
+        font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com;
+        connect-src 'self' https://api.emailjs.com https://generativelanguage.googleapis.com;
+        img-src 'self' data:;
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+    ">
+    
     <title>AI Code Assistant - Ваш помощник в программировании</title>
     <meta name="description" content="Бесплатный AI-ассистент для генерации, анализа и оптимизации вашего кода.">
     
@@ -401,6 +413,12 @@
         const SESSION_KEY = 'ai_assistant_session';
         const ADMIN_ACCESS_CODE = 'SanTaya_2010_pandochka';
 
+        function sanitizeHTML(str) {
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+
         async function hashPassword(password, salt) {
             const encoder = new TextEncoder();
             const data = encoder.encode(password + salt);
@@ -428,7 +446,7 @@
 
         async function handleRegister(e) {
             e.preventDefault();
-            const email = document.getElementById('reg-email').value.toLowerCase();
+            const email = sanitizeHTML(document.getElementById('reg-email').value).toLowerCase();
             const password = document.getElementById('reg-password').value;
             
             if (email === 'admin@system.local') {
@@ -479,7 +497,7 @@
         
         function handleVerification(e) {
             e.preventDefault();
-            const enteredCode = document.getElementById('verification-code').value;
+            const enteredCode = sanitizeHTML(document.getElementById('verification-code').value);
             const pendingUserData = sessionStorage.getItem('pending_verification');
 
             if (!pendingUserData) {
@@ -505,7 +523,7 @@
 
         async function handleLogin(e) {
             e.preventDefault();
-            const email = document.getElementById('login-email').value.toLowerCase();
+            const email = sanitizeHTML(document.getElementById('login-email').value).toLowerCase();
             const password = document.getElementById('login-password').value;
             const user = getUsers().find(u => u.email === email);
 
@@ -570,7 +588,8 @@
         }
 
         function submitAdminCode() {
-            if (dom.adminCodeInput.value === ADMIN_ACCESS_CODE) {
+            const adminCode = sanitizeHTML(dom.adminCodeInput.value);
+            if (adminCode === ADMIN_ACCESS_CODE) {
                 const adminEmail = 'admin@system.local';
                 sessionStorage.setItem(SESSION_KEY, adminEmail);
                 showApp(adminEmail);
@@ -612,8 +631,8 @@
         async function handleGenerateCode() {
             const languageInput = document.getElementById('language');
             const promptInput = document.getElementById('prompt');
-            let language = languageInput.value.trim().toLowerCase();
-            const prompt = promptInput.value.trim();
+            let language = sanitizeHTML(languageInput.value).trim().toLowerCase();
+            const prompt = sanitizeHTML(promptInput.value).trim();
 
             if (!prompt) {
                 showToast("Пожалуйста, опишите, что должен делать код.", true);
@@ -675,7 +694,6 @@
             }
         }
         
-        // --- NEW: handleAnalyzeCode with REAL AI (Gemini API) ---
         async function handleAnalyzeCode() {
             const userEmail = sessionStorage.getItem(SESSION_KEY);
             const codeInput = document.getElementById('code-input').value;
@@ -739,7 +757,6 @@ ${codeInput}
                     
                     const analysis = JSON.parse(jsonString);
 
-                    // Render the analysis
                     panelDom.fixResultContainer.innerHTML = `
                         <div id="explanation-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-blue-400"><i class="fas fa-comment-dots mr-2"></i>Анализ ошибок</h3><div id="explanation-content" class="text-gray-300 prose prose-invert max-w-none"></div></div>
                         <div id="optimization-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-yellow-400"><i class="fas fa-lightbulb mr-2"></i>Подсказки по оптимизации</h3><div id="optimization-content" class="text-gray-300 prose prose-invert max-w-none"></div></div>
@@ -754,11 +771,11 @@ ${codeInput}
                     document.getElementById('copy-fixed-btn').addEventListener('click', () => copyToClipboard('fixed-code'));
 
                     if (isAdmin && analysis.securityAnalysis) {
-                        const securityBox = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-red-400"><i class="fas fa-shield-alt mr-2"></i>Анализ безопасности (Admin)</h3><div class="text-gray-300">${analysis.securityAnalysis}</div></div>`;
+                        const securityBox = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-red-400"><i class="fas fa-shield-alt mr-2"></i>Анализ безопасности (Admin)</h3><div class="text-gray-300">${sanitizeHTML(analysis.securityAnalysis)}</div></div>`;
                         panelDom.fixResultContainer.insertAdjacentHTML('beforeend', securityBox);
                     }
                     if (isAdmin && analysis.performanceMetrics) {
-                        const perfBox = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-cyan-400"><i class="fas fa-tachometer-alt mr-2"></i>Метрики (Admin)</h3><div class="text-gray-300">${analysis.performanceMetrics}</div></div>`;
+                        const perfBox = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-cyan-400"><i class="fas fa-tachometer-alt mr-2"></i>Метрики (Admin)</h3><div class="text-gray-300">${sanitizeHTML(analysis.performanceMetrics)}</div></div>`;
                         panelDom.fixResultContainer.insertAdjacentHTML('beforeend', perfBox);
                     }
 
@@ -780,8 +797,8 @@ ${codeInput}
             const users = getUsers().filter(u => u.email !== 'admin@system.local');
             let userListHtml = users.map(user => `
                 <li class="flex justify-between items-center p-3 bg-gray-700/50 rounded-lg">
-                    <span class="truncate">${user.email}</span>
-                    <button data-email="${user.email}" class="delete-user-btn interactive-sound text-red-400 hover:text-red-300 px-3 py-1 rounded-md hover:bg-red-500/20 text-sm">
+                    <span class="truncate">${sanitizeHTML(user.email)}</span>
+                    <button data-email="${sanitizeHTML(user.email)}" class="delete-user-btn interactive-sound text-red-400 hover:text-red-300 px-3 py-1 rounded-md hover:bg-red-500/20 text-sm">
                         <i class="fas fa-trash-alt mr-1"></i>Удалить
                     </button>
                 </li>
@@ -826,12 +843,28 @@ ${codeInput}
             setTimeout(() => dom.toastEl.classList.remove('show', 'error'), 3000);
         }
 
+        // --- FIXED: Robust copyToClipboard function ---
         function copyToClipboard(elementId) {
-            const text = document.getElementById(elementId)?.innerText;
-            if (text) {
-                navigator.clipboard.writeText(text)
-                    .then(() => showToast('Код скопирован!'))
-                    .catch(err => showToast('Не удалось скопировать.', true));
+            const codeElement = document.getElementById(elementId);
+            if (!codeElement) {
+                showToast('Не удалось найти код для копирования.', true);
+                return;
+            }
+            const textToCopy = codeElement.innerText;
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Код скопирован!');
+            } catch (err) {
+                console.error('Ошибка копирования:', err);
+                showToast('Ошибка при копировании.', true);
+            } finally {
+                document.body.removeChild(textArea);
             }
         }
         
