@@ -144,6 +144,21 @@
                         </div>
                     </form>
 
+                    <form id="verification-form" class="hidden">
+                        <div class="space-y-4">
+                            <div>
+                                <label for="verification-code" class="block text-sm font-medium text-gray-300 mb-2">Код из письма</label>
+                                <input type="text" id="verification-code" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-center tracking-[0.5em] focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="_ _ _ _ _ _">
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <button type="submit" id="verify-submit-btn" class="action-btn interactive-sound w-full bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-bold py-3 px-4 rounded-lg flex justify-center items-center">
+                                <span class="btn-text">Подтвердить и создать аккаунт</span>
+                                <span class="btn-loader hidden"><div class="loader"></div></span>
+                            </button>
+                        </div>
+                    </form>
+                    
                     <div class="mt-6 text-center">
                         <button id="toggle-auth-mode" class="text-sm text-blue-400 hover:text-blue-300">Нет аккаунта? Зарегистрироваться</button>
                     </div>
@@ -292,7 +307,9 @@
             appContainer: document.getElementById('app-container'),
             loginForm: document.getElementById('login-form'),
             registerForm: document.getElementById('register-form'),
+            verificationForm: document.getElementById('verification-form'),
             registerSubmitBtn: document.getElementById('register-submit-btn'),
+            verifySubmitBtn: document.getElementById('verify-submit-btn'),
             toggleAuthBtn: document.getElementById('toggle-auth-mode'),
             authTitle: document.getElementById('auth-title'),
             toastEl: document.getElementById('toast'),
@@ -333,10 +350,28 @@
         function saveUsers(users) { localStorage.setItem(USERS_DB_KEY, JSON.stringify(users)); }
         const mockHash = (str) => btoa(str);
 
+        function sendVerificationEmail(email, code) {
+            const serviceID = 'service_jye3v09';
+            // ✅ ID шаблона успешно вставлен
+            const templateID = 'template_07hutck'; 
+            const publicKey = 'Mz85q9YUnhHndlDTR';
+
+            const templateParams = {
+                to_email: email,
+                auth_code: code
+            };
+            return emailjs.send(serviceID, templateID, templateParams, publicKey);
+        }
+
         function handleRegister(e) {
             e.preventDefault();
             const email = document.getElementById('reg-email').value.toLowerCase();
             const password = document.getElementById('reg-password').value;
+            
+            if (email === 'admin@system.local') {
+                showToast("Этот email зарезервирован.", true);
+                return;
+            }
 
             if (password.length < 8) {
                 showToast("Пароль должен быть не менее 8 символов.", true);
@@ -353,18 +388,23 @@
             btnLoader.classList.remove('hidden');
             dom.registerSubmitBtn.disabled = true;
 
-            sendNewUserNotification(email, password)
+            const verificationCode = Math.floor(100000 + Math.random() * 900000);
+
+            const pendingUser = { email, password: mockHash(password), code: verificationCode };
+            sessionStorage.setItem('pending_verification', JSON.stringify(pendingUser));
+
+            sendVerificationEmail(email, verificationCode)
                 .then(() => {
-                    const users = getUsers();
-                    users.push({ email, password: mockHash(password) });
-                    saveUsers(users);
-                    sessionStorage.setItem(SESSION_KEY, email);
-                    showApp(email);
-                    showToast("Регистрация прошла успешно!");
+                    showToast("Код подтверждения отправлен на ваш email.");
+                    dom.loginForm.classList.add('hidden');
+                    dom.registerForm.classList.add('hidden');
+                    dom.toggleAuthBtn.classList.add('hidden');
+                    dom.verificationForm.classList.remove('hidden');
+                    dom.authTitle.textContent = 'Подтвердите ваш email';
                 })
                 .catch((error) => {
                     console.error("Ошибка отправки EmailJS:", error);
-                    showToast("Ошибка регистрации. Попробуйте позже.", true);
+                    showToast("Не удалось отправить код. Проверьте email и попробуйте позже.", true);
                 })
                 .finally(() => {
                     btnText.classList.remove('hidden');
@@ -373,13 +413,30 @@
                 });
         }
         
-        function sendNewUserNotification(email, password) {
-            const serviceID = 'service_jye3v09';
-            const templateID = 'template_hi32rh4';
-            const publicKey = 'Mz85q9YUnhHndlDTR';
+        function handleVerification(e) {
+            e.preventDefault();
+            const enteredCode = document.getElementById('verification-code').value;
+            const pendingUserData = sessionStorage.getItem('pending_verification');
 
-            const templateParams = { email, password, to_email: 'aalexandovich@gmail.com' };
-            return emailjs.send(serviceID, templateID, templateParams, publicKey);
+            if (!pendingUserData) {
+                showToast("Произошла ошибка. Попробуйте зарегистрироваться снова.", true);
+                return;
+            }
+
+            const pendingUser = JSON.parse(pendingUserData);
+
+            if (parseInt(enteredCode) === pendingUser.code) {
+                const users = getUsers();
+                users.push({ email: pendingUser.email, password: pendingUser.password });
+                saveUsers(users);
+
+                sessionStorage.removeItem('pending_verification');
+                sessionStorage.setItem(SESSION_KEY, pendingUser.email);
+                showApp(pendingUser.email);
+                showToast("Регистрация прошла успешно!");
+            } else {
+                showToast("Неверный код подтверждения.", true);
+            }
         }
 
         function handleLogin(e) {
@@ -426,6 +483,8 @@
             const isLoginMode = !dom.loginForm.classList.contains('hidden');
             dom.loginForm.classList.toggle('hidden');
             dom.registerForm.classList.toggle('hidden');
+            dom.verificationForm.classList.add('hidden');
+            dom.toggleAuthBtn.classList.remove('hidden');
             dom.authTitle.textContent = isLoginMode ? 'Создайте новый аккаунт' : 'Войдите, чтобы продолжить';
             dom.toggleAuthBtn.textContent = isLoginMode ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться';
         }
@@ -575,6 +634,7 @@
             const color1 = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
             const color2 = `hsl(${(h + 40) % 360}, ${s * 100}%, ${Math.min(1, l + 0.15) * 100}%)`;
             const color3 = `hsl(${(h - 40 + 360) % 360}, ${s * 100}%, ${Math.max(0, l - 0.15) * 100}%)`;
+            
             document.documentElement.style.setProperty('--neon-color-1', color1);
             document.documentElement.style.setProperty('--neon-color-2', color2);
             document.documentElement.style.setProperty('--neon-color-3', color3);
@@ -599,6 +659,7 @@
             document.addEventListener('keydown', handleAdminAccess);
             dom.loginForm.addEventListener('submit', handleLogin);
             dom.registerForm.addEventListener('submit', handleRegister);
+            dom.verificationForm.addEventListener('submit', handleVerification);
             dom.toggleAuthBtn.addEventListener('click', toggleAuthMode);
             dom.logoutBtn.addEventListener('click', handleLogout);
             dom.menuBtn.addEventListener('click', openMenu);
