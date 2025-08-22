@@ -628,6 +628,43 @@
             });
         }
         
+        // --- NEW: Robust API Call Function ---
+        async function callGeminiAPI(prompt, retries = 3, delay = 1000) {
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            const apiKey = ""; // Handled by environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429 && retries > 0) {
+                        await new Promise(res => setTimeout(res, delay));
+                        return callGeminiAPI(prompt, retries - 1, delay * 2);
+                    }
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    if (result.candidates?.[0]?.finishReason === 'SAFETY') {
+                        throw new Error("Запрос заблокирован из-за политики безопасности.");
+                    }
+                    throw new Error("AI вернул пустой или некорректный ответ.");
+                }
+            } catch (error) {
+                console.error("Ошибка вызова Gemini API:", error);
+                throw error;
+            }
+        }
+
         async function handleGenerateCode() {
             const languageInput = document.getElementById('language');
             const promptInput = document.getElementById('prompt');
@@ -661,34 +698,13 @@
             const fullPrompt = `Сгенерируй фрагмент кода на языке ${language}. Задача: "${prompt}". Код должен быть полным и рабочим примером. Не добавляй никаких пояснений или текста, только сам код.`;
 
             try {
-                let chatHistory = [{ role: "user", parts: [{ text: fullPrompt }] }];
-                const payload = { contents: chatHistory };
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-                
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-
-                const result = await response.json();
-                
-                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                    let codeResult = result.candidates[0].content.parts[0].text;
-                    codeResult = codeResult.replace(/^```[a-zA-Z]*\n/, '').replace(/\n```$/, '');
-                    panelDom.generatedCodeEl.textContent = codeResult;
-                    hljs.highlightElement(panelDom.generatedCodeEl);
-                    panelDom.generateResultContainer.classList.remove('hidden');
-                } else {
-                    throw new Error("Не удалось получить корректный ответ от AI.");
-                }
-
+                let codeResult = await callGeminiAPI(fullPrompt);
+                codeResult = codeResult.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '');
+                panelDom.generatedCodeEl.textContent = codeResult;
+                hljs.highlightElement(panelDom.generatedCodeEl);
+                panelDom.generateResultContainer.classList.remove('hidden');
             } catch (error) {
-                console.error("Ошибка при вызове Gemini API:", error);
-                showToast("Ошибка при генерации кода. Попробуйте снова.", true);
+                showToast(error.message, true);
             } finally {
                 panelDom.generateLoader.classList.add('hidden');
             }
@@ -736,61 +752,52 @@ ${codeInput}
             }
 
             try {
-                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-                const payload = { contents: chatHistory };
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-
-                const result = await response.json();
-
-                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                    let jsonString = result.candidates[0].content.parts[0].text;
-                    jsonString = jsonString.replace(/^```json\n/, '').replace(/\n```$/, '');
-                    
-                    const analysis = JSON.parse(jsonString);
-
-                    panelDom.fixResultContainer.innerHTML = `
-                        <div id="explanation-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-blue-400"><i class="fas fa-comment-dots mr-2"></i>Анализ ошибок</h3><div id="explanation-content" class="text-gray-300 prose prose-invert max-w-none"></div></div>
-                        <div id="optimization-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-yellow-400"><i class="fas fa-lightbulb mr-2"></i>Подсказки по оптимизации</h3><div id="optimization-content" class="text-gray-300 prose prose-invert max-w-none"></div></div>
-                        <div id="fixed-code-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-green-400"><i class="fas fa-check-circle mr-2"></i>Исправленный код</h3><div class="relative bg-gray-900 rounded-lg"><pre><code id="fixed-code" class="hljs rounded-lg p-4"></code></pre><button id="copy-fixed-btn" class="interactive-sound absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded-md text-sm opacity-75 hover:opacity-100"><i class="fas fa-copy"></i> Копировать</button></div></div>
-                    `;
-                    
-                    document.getElementById('explanation-content').textContent = analysis.errorAnalysis;
-                    document.getElementById('optimization-content').textContent = analysis.optimizationSuggestions;
-                    const fixedCodeEl = document.getElementById('fixed-code');
-                    fixedCodeEl.textContent = analysis.fixedCode;
-                    hljs.highlightElement(fixedCodeEl);
-                    document.getElementById('copy-fixed-btn').addEventListener('click', () => copyToClipboard('fixed-code'));
-
-                    if (isAdmin && analysis.securityAnalysis) {
-                        const securityBox = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-red-400"><i class="fas fa-shield-alt mr-2"></i>Анализ безопасности (Admin)</h3><div class="text-gray-300">${sanitizeHTML(analysis.securityAnalysis)}</div></div>`;
-                        panelDom.fixResultContainer.insertAdjacentHTML('beforeend', securityBox);
-                    }
-                    if (isAdmin && analysis.performanceMetrics) {
-                        const perfBox = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-cyan-400"><i class="fas fa-tachometer-alt mr-2"></i>Метрики (Admin)</h3><div class="text-gray-300">${sanitizeHTML(analysis.performanceMetrics)}</div></div>`;
-                        panelDom.fixResultContainer.insertAdjacentHTML('beforeend', perfBox);
-                    }
-
-                    panelDom.fixResultContainer.classList.remove('hidden');
-
-                } else {
-                    throw new Error("Не удалось получить корректный анализ от AI.");
+                let jsonString = await callGeminiAPI(prompt);
+                
+                const startIndex = jsonString.indexOf('{');
+                const endIndex = jsonString.lastIndexOf('}');
+                if (startIndex === -1 || endIndex === -1) {
+                    throw new Error("AI не вернул корректный JSON.");
                 }
+                jsonString = jsonString.substring(startIndex, endIndex + 1);
+                
+                const analysis = JSON.parse(jsonString);
+                renderAnalysisResults(analysis);
 
             } catch (error) {
-                console.error("Ошибка при анализе кода:", error);
-                showToast("Ошибка при анализе кода. Проверьте код или попробуйте снова.", true);
+                showToast(error.message, true);
             } finally {
                 panelDom.fixLoader.classList.add('hidden');
             }
+        }
+
+        function renderAnalysisResults(analysis) {
+            const userEmail = sessionStorage.getItem(SESSION_KEY);
+            const isAdmin = userEmail === 'admin@system.local';
+            
+            panelDom.fixResultContainer.innerHTML = `
+                <div id="explanation-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-blue-400"><i class="fas fa-comment-dots mr-2"></i>Анализ ошибок</h3><div id="explanation-content" class="text-gray-300 prose prose-invert max-w-none"></div></div>
+                <div id="optimization-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-yellow-400"><i class="fas fa-lightbulb mr-2"></i>Подсказки по оптимизации</h3><div id="optimization-content" class="text-gray-300 prose prose-invert max-w-none"></div></div>
+                <div id="fixed-code-box" class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-green-400"><i class="fas fa-check-circle mr-2"></i>Исправленный код</h3><div class="relative bg-gray-900 rounded-lg"><pre><code id="fixed-code" class="hljs rounded-lg p-4"></code></pre><button id="copy-fixed-btn" class="interactive-sound absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded-md text-sm opacity-75 hover:opacity-100"><i class="fas fa-copy"></i> Копировать</button></div></div>
+            `;
+            
+            document.getElementById('explanation-content').textContent = analysis.errorAnalysis;
+            document.getElementById('optimization-content').textContent = analysis.optimizationSuggestions;
+            const fixedCodeEl = document.getElementById('fixed-code');
+            fixedCodeEl.textContent = analysis.fixedCode;
+            hljs.highlightElement(fixedCodeEl);
+            document.getElementById('copy-fixed-btn').addEventListener('click', () => copyToClipboard('fixed-code'));
+
+            if (isAdmin && analysis.securityAnalysis) {
+                const securityBox = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-red-400"><i class="fas fa-shield-alt mr-2"></i>Анализ безопасности (Admin)</h3><div class="text-gray-300">${sanitizeHTML(analysis.securityAnalysis)}</div></div>`;
+                panelDom.fixResultContainer.insertAdjacentHTML('beforeend', securityBox);
+            }
+            if (isAdmin && analysis.performanceMetrics) {
+                const perfBox = `<div class="bg-gray-800/50 p-6 rounded-xl shadow-lg"><h3 class="text-xl font-semibold mb-4 text-cyan-400"><i class="fas fa-tachometer-alt mr-2"></i>Метрики (Admin)</h3><div class="text-gray-300">${sanitizeHTML(analysis.performanceMetrics)}</div></div>`;
+                panelDom.fixResultContainer.insertAdjacentHTML('beforeend', perfBox);
+            }
+
+            panelDom.fixResultContainer.classList.remove('hidden');
         }
 
         function renderAdminPanel() {
@@ -843,7 +850,6 @@ ${codeInput}
             setTimeout(() => dom.toastEl.classList.remove('show', 'error'), 3000);
         }
 
-        // --- FIXED: Robust copyToClipboard function ---
         function copyToClipboard(elementId) {
             const codeElement = document.getElementById(elementId);
             if (!codeElement) {
